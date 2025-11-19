@@ -106,4 +106,14 @@ public class CachedDocument extends AbstractDecorator {
             System.err.println("Error storing in cache: " + e.getMessage());
         }
     }
+
+    @SneakyThrows
+    public static void clearCache() {
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+            Statement stmt = conn.createStatement()) {
+            stmt.execute("DELETE FROM document_cache");
+        } catch (SQLException e) {
+            System.err.println("Failed to clear cache: " + e.getMessage());
+        }
+    }
 }

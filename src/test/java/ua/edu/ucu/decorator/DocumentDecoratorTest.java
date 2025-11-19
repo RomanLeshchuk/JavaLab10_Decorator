@@ -3,6 +3,7 @@ package ua.edu.ucu.decorator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -11,7 +12,6 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 
 class DocumentDecoratorTest {
-
     private Document mockDocument;
     private static final String TEST_CONTENT = "This is test document content";
 
@@ -19,14 +19,17 @@ class DocumentDecoratorTest {
     void setUp() {
         mockDocument = mock(Document.class);
         when(mockDocument.parse()).thenReturn(TEST_CONTENT);
+
+        // Reset static cache between tests
+        CachedDocument.clearCache();
     }
 
     @Test
     void testAbstractDecoratorDelegation() {
         Document decorator = new AbstractDecorator(mockDocument) {};
-        
+
         String result = decorator.parse();
-        
+
         assertEquals(TEST_CONTENT, result);
         verify(mockDocument, times(1)).parse();
     }
@@ -47,18 +50,19 @@ class DocumentDecoratorTest {
 
         assertEquals(TEST_CONTENT, result);
         String output = outContent.toString();
+
         assertTrue(output.contains("Document parsing took"));
         assertTrue(output.contains("ms"));
-        
+
         System.setOut(System.out);
     }
 
     @Test
     void testTimedDocumentReturnsCorrectContent() {
         Document timedDocument = new TimedDocument(mockDocument);
-        
+
         String result = timedDocument.parse();
-        
+
         assertEquals(TEST_CONTENT, result);
         verify(mockDocument, times(1)).parse();
     }
@@ -73,11 +77,13 @@ class DocumentDecoratorTest {
         System.setOut(new PrintStream(outContent));
 
         Document cachedDocument = new CachedDocument(smartDocument);
-        
+
         String result1 = cachedDocument.parse();
         assertEquals(TEST_CONTENT, result1);
-        assertTrue(outContent.toString().contains("Cache miss"));
-        
+
+        String output = outContent.toString();
+        assertTrue(output.contains("Cache miss"));
+
         System.setOut(System.out);
     }
 
@@ -87,21 +93,21 @@ class DocumentDecoratorTest {
         smartDocument.gcsPath = "gs://test-bucket/test-doc-2.pdf";
         when(smartDocument.parse()).thenReturn(TEST_CONTENT);
 
-        ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-
         Document cachedDocument = new CachedDocument(smartDocument);
-        
+
         cachedDocument.parse();
-        
-        outContent.reset();
+
+        ByteArrayOutputStream outContent = new ByteArrayOutputStream();
         System.setOut(new PrintStream(outContent));
-        
+
         String result2 = cachedDocument.parse();
         assertEquals(TEST_CONTENT, result2);
-        assertTrue(outContent.toString().contains("Retrieved from cache"));
-        
+
+        String output = outContent.toString();
+        assertTrue(output.contains("Retrieved from cache"));
+
         verify(smartDocument, times(1)).parse();
-        
+
         System.setOut(System.out);
     }
 
@@ -117,22 +123,22 @@ class DocumentDecoratorTest {
         ByteArrayOutputStream outContent = new ByteArrayOutputStream();
         System.setOut(new PrintStream(outContent));
 
-        String result = timedCachedDocument.parse();
-        assertEquals(TEST_CONTENT, result);
-        
-        String output = outContent.toString();
-        assertTrue(output.contains("Document parsing took"));
-        assertTrue(output.contains("Cache miss"));
-        
+        String result1 = timedCachedDocument.parse();
+        assertEquals(TEST_CONTENT, result1);
+
+        String output1 = outContent.toString();
+        assertTrue(output1.contains("Document parsing took"));
+        assertTrue(output1.contains("Cache miss"));
+
         outContent.reset();
-        
-        result = timedCachedDocument.parse();
-        assertEquals(TEST_CONTENT, result);
-        
-        output = outContent.toString();
-        assertTrue(output.contains("Document parsing took"));
-        assertTrue(output.contains("Retrieved from cache"));
-        
+
+        String result2 = timedCachedDocument.parse();
+        assertEquals(TEST_CONTENT, result2);
+
+        String output2 = outContent.toString();
+        assertTrue(output2.contains("Document parsing took"));
+        assertTrue(output2.contains("Retrieved from cache"));
+
         System.setOut(System.out);
     }
 
@@ -144,7 +150,7 @@ class DocumentDecoratorTest {
                 return "[Level1: " + super.parse() + "]";
             }
         };
-        
+
         Document level2 = new AbstractDecorator(level1) {
             @Override
             public String parse() {
